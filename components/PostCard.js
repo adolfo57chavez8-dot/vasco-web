@@ -1,15 +1,37 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
+import ProtectedMedia from './ProtectedMedia';
 
-const REACTIONS = ['like', 'love', 'haha', 'wow', 'sad'];
+const REACTIONS = [
+  { type: 'like', emoji: '👍' },
+  { type: 'love', emoji: '❤️' },
+  { type: 'haha', emoji: '😂' },
+  { type: 'wow', emoji: '😮' },
+  { type: 'sad', emoji: '😢' },
+];
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'ahora';
+  if (mins < 60) return `hace ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  const days = Math.floor(hours / 24);
+  return `hace ${days} d`;
+}
 
 export default function PostCard({ post }) {
+  const router = useRouter();
   const [reactionCounts, setReactionCounts] = useState({});
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [showComments, setShowComments] = useState(false);
+  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     loadReactions();
@@ -42,13 +64,23 @@ export default function PostCard({ post }) {
     if (!showComments) loadComments();
   };
 
-  const react = async (type) => {
+  const requireSession = async () => {
     const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) return;
+    if (!userData?.user) {
+      setNotice('Inicia sesión para participar.');
+      return null;
+    }
+    setNotice('');
+    return userData.user;
+  };
+
+  const react = async (type) => {
+    const user = await requireSession();
+    if (!user) return;
 
     await supabase.from('reactions').insert({
       post_id: post.id,
-      user_id: userData.user.id,
+      user_id: user.id,
       reaction_type: type,
     });
     loadReactions();
@@ -57,56 +89,87 @@ export default function PostCard({ post }) {
   const submitComment = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) return;
+    const user = await requireSession();
+    if (!user) return;
 
     await supabase.from('comments').insert({
       post_id: post.id,
-      user_id: userData.user.id,
+      user_id: user.id,
       content: newComment,
     });
     setNewComment('');
     loadComments();
   };
 
+  const authorName = post.author?.username || 'usuario';
+
   return (
-    <div style={{ border: '1px solid #334155', borderRadius: 8, padding: '1rem', marginBottom: '1rem' }}>
-      {post.description && <p>{post.description}</p>}
+    <div className="card post-card">
+      <div className="post-author">
+        {post.author?.avatar_url ? (
+          <img
+            src={post.author.avatar_url}
+            alt={authorName}
+            style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 34, height: 34, borderRadius: '50%',
+              background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-display)', fontSize: '0.9rem', color: 'var(--text-muted)',
+            }}
+          >
+            {authorName.charAt(0).toUpperCase()}
+          </div>
+        )}
+        <div>
+          <div className="post-author-name">@{authorName}</div>
+          <div className="post-author-time">{timeAgo(post.created_at)}</div>
+        </div>
+      </div>
 
-      {post.content_type === 'foto' && post.file_url && (
-        <img src={post.file_url} alt="" style={{ width: '100%', borderRadius: 6 }} />
-      )}
-      {post.content_type === 'video' && post.file_url && (
-        <video src={post.file_url} controls style={{ width: '100%', borderRadius: 6 }} />
+      {post.description && <p className="post-description">{post.description}</p>}
+
+      {(post.content_type === 'foto' || post.content_type === 'video') && post.file_url && (
+        <ProtectedMedia
+          type={post.content_type === 'video' ? 'video' : 'image'}
+          src={post.file_url}
+          alt={post.description}
+          username={authorName}
+        />
       )}
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-        {REACTIONS.map((type) => (
-          <button key={type} onClick={() => react(type)}>
-            {type} {reactionCounts[type] ? `(${reactionCounts[type]})` : ''}
+      <div className="reaction-bar">
+        {REACTIONS.map(({ type, emoji }) => (
+          <button key={type} className="reaction-btn" onClick={() => react(type)}>
+            <span>{emoji}</span>
+            {reactionCounts[type] ? <span className="reaction-count">{reactionCounts[type]}</span> : null}
           </button>
         ))}
       </div>
 
-      <button onClick={toggleComments} style={{ marginTop: '0.5rem', background: 'none', border: 'none', color: '#38bdf8' }}>
-        {showComments ? 'Ocultar comentarios' : 'Ver comentarios'}
+      {notice && <p className="login-prompt">{notice} <a href="/login">Iniciar sesión</a></p>}
+
+      <button className="comment-toggle" onClick={toggleComments}>
+        {showComments ? '— Ocultar comentarios' : `Ver comentarios (${comments.length || ''})`}
       </button>
 
       {showComments && (
-        <div style={{ marginTop: '0.5rem' }}>
+        <div className="comments-section">
+          {comments.length === 0 && <p className="hint-text">Sé el primero en comentar.</p>}
           {comments.map((c) => (
-            <p key={c.id} style={{ borderTop: '1px solid #334155', paddingTop: '0.4rem' }}>
-              {c.content}
-            </p>
+            <p key={c.id} className="comment-item">{c.content}</p>
           ))}
-          <form onSubmit={submitComment} style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+          <form onSubmit={submitComment} className="comment-form">
             <input
+              className="input"
               placeholder="Escribe un comentario..."
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              style={{ flex: 1 }}
             />
-            <button type="submit">Enviar</button>
+            <button type="submit" className="btn btn-primary">Enviar</button>
           </form>
         </div>
       )}

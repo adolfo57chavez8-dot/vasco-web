@@ -30,7 +30,6 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else if (data.user) {
-        // Crear el perfil correspondiente en la tabla profiles
         const { error: profileError } = await supabase.from('profiles').insert({
           id: data.user.id,
           username,
@@ -48,42 +47,87 @@ export default function LoginPage() {
   };
 
   return (
-    <div>
-      <h1>{mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}</h1>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 320 }}>
-        {mode === 'register' && (
-          <input
-            placeholder="Nombre de usuario"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-        )}
-        <input
-          type="email"
-          placeholder="Correo electrónico"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Contraseña"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        {error && <p style={{ color: '#f87171' }}>{error}</p>}
-        <button type="submit" disabled={loading}>
-          {loading ? 'Cargando...' : mode === 'login' ? 'Entrar' : 'Registrarme'}
+    <div className="auth-wrap">
+      <div className="card auth-card">
+        <div className="tabs">
+          <button
+            type="button"
+            className={mode === 'login' ? 'tab active' : 'tab'}
+            onClick={() => setMode('login')}
+          >
+            Iniciar sesión
+          </button>
+          <button
+            type="button"
+            className={mode === 'register' ? 'tab active' : 'tab'}
+            onClick={() => setMode('register')}
+          >
+            Crear cuenta
+          </button>
+        </div>
+
+        <h1 style={{ fontSize: '1.4rem', marginBottom: '0.3rem' }}>
+          {mode === 'login' ? 'Bienvenido de vuelta' : 'Únete a la comunidad'}
+        </h1>
+        <p className="page-subtitle" style={{ marginBottom: '1.2rem' }}>
+          {mode === 'login' ? 'Ingresa tus datos para continuar.' : 'Crea tu cuenta para publicar y reaccionar.'}
+        </p>
+
+        <form onSubmit={handleSubmit} className="form">
+          {mode === 'register' && (
+            <div className="field">
+              <label className="label">Nombre de usuario</label>
+              <input
+                className="input"
+                placeholder="ej. jose_10"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+          )}
+          <div className="field">
+            <label className="label">Correo electrónico</label>
+            <input
+              className="input"
+              type="email"
+              placeholder="tucorreo@ejemplo.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="field">
+            <label className="label">Contraseña</label>
+            <input
+              className="input"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          {error && <p className="error-text">{error}</p>}
+
+          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+            {loading ? 'Cargando...' : mode === 'login' ? 'Entrar' : 'Registrarme'}
+          </button>
+        </form>
+
+        <button
+          className="switch-link"
+          onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+        >
+          {mode === 'login' ? (
+            <>¿No tienes cuenta? <b>Regístrate</b></>
+          ) : (
+            <>¿Ya tienes cuenta? <b>Inicia sesión</b></>
+          )}
         </button>
-      </form>
-      <button
-        onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-        style={{ marginTop: '1rem', background: 'none', border: 'none', color: '#38bdf8' }}
-      >
-        {mode === 'login' ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
-      </button>
+      </div>
     </div>
   );
 }
+

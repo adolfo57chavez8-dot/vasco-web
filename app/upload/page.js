@@ -63,25 +63,41 @@ export default function UploadPage() {
 
   return (
     <div>
-      <h1>Nueva publicación</h1>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 400 }}>
-        <input
-          type="file"
-          accept="image/png,image/jpeg,image/webp,video/mp4,video/webm"
-          onChange={(e) => setFile(e.target.files[0])}
-          required
-        />
-        <textarea
-          placeholder="Descripción (opcional)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-        />
-        {error && <p style={{ color: '#f87171' }}>{error}</p>}
-        <button type="submit" disabled={loading}>
-          {loading ? 'Subiendo...' : 'Publicar'}
-        </button>
-      </form>
+      <div className="page-header">
+        <span className="page-eyebrow">Nueva</span>
+        <h1>Publicar</h1>
+        <p className="page-subtitle">Comparte una foto o video con la comunidad.</p>
+      </div>
+
+      <div className="card" style={{ padding: '1.25rem' }}>
+        <form onSubmit={handleSubmit} className="form">
+          <div className="field">
+            <label className="label">Foto o video</label>
+            <input
+              className="file-input"
+              type="file"
+              accept="image/png,image/jpeg,image/webp,video/mp4,video/webm"
+              onChange={(e) => setFile(e.target.files[0])}
+              required
+            />
+          </div>
+          <div className="field">
+            <label className="label">Descripción (opcional)</label>
+            <textarea
+              className="textarea"
+              placeholder="¿Qué estás compartiendo?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+          {error && <p className="error-text">{error}</p>}
+          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+            {loading ? 'Subiendo...' : 'Publicar'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
+

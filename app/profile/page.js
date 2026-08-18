@@ -10,9 +10,12 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [origin, setOrigin] = useState('');
 
   useEffect(() => {
     loadProfile();
+    if (typeof window !== 'undefined') setOrigin(window.location.origin);
   }, []);
 
   const loadProfile = async () => {
@@ -82,37 +85,96 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading) return <p>Cargando...</p>;
-  if (!profile) return <p>Inicia sesión para ver tu perfil.</p>;
+  const publicLink = profile?.username ? `${origin}/u/${profile.username}` : '';
+
+  const handleCopy = async () => {
+    if (!publicLink) return;
+    try {
+      await navigator.clipboard.writeText(publicLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="state-block">
+        <div className="state-title">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="state-block">
+        <div className="state-title">Inicia sesión para ver tu perfil</div>
+        <p><a href="/login">Ir a iniciar sesión</a></p>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <h1>Mi perfil</h1>
-      {profile.avatar_url && (
-        <img
-          src={profile.avatar_url}
-          alt="avatar"
-          style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', marginBottom: '1rem' }}
-        />
+      <div className="card profile-hero">
+        {profile.avatar_url ? (
+          <img src={profile.avatar_url} alt="avatar" className="avatar" />
+        ) : (
+          <div className="avatar-placeholder">
+            {(profile.username || '?').charAt(0).toUpperCase()}
+          </div>
+        )}
+        <div className="profile-username">@{profile.username || 'sin-nombre'}</div>
+      </div>
+
+      <div className="card" style={{ padding: '1.25rem' }}>
+        <div className="page-header" style={{ marginBottom: '1rem' }}>
+          <span className="page-eyebrow">Editar</span>
+          <h2 style={{ margin: 0 }}>Mi perfil</h2>
+        </div>
+
+        <form onSubmit={handleSave} className="form">
+          <div className="field">
+            <label className="label">Nombre de usuario</label>
+            <input
+              className="input"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          <div className="field">
+            <label className="label">Cambiar avatar</label>
+            <input
+              className="file-input"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(e) => setAvatarFile(e.target.files[0])}
+            />
+          </div>
+          {error && <p className="error-text">{error}</p>}
+          <button type="submit" className="btn btn-primary btn-block" disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar cambios'}
+          </button>
+        </form>
+      </div>
+
+      {profile.username && (
+        <div className="card share-box">
+          <label className="label">Tu link público para compartir</label>
+          <div className="share-row">
+            <input className="input" readOnly value={publicLink} onClick={(e) => e.target.select()} />
+            <button type="button" className="btn btn-ghost" onClick={handleCopy}>
+              Copiar
+            </button>
+          </div>
+          <p className="copy-feedback">{copied ? '¡Copiado!' : ''}</p>
+          <p className="hint-text">
+            Cualquiera puede abrir este link para ver tus publicaciones, reaccionar y comentar. Necesitan crear una cuenta para participar.
+          </p>
+        </div>
       )}
-      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 320 }}>
-        <label>
-          Nombre de usuario
-          <input value={username} onChange={(e) => setUsername(e.target.value)} required />
-        </label>
-        <label>
-          Cambiar avatar
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={(e) => setAvatarFile(e.target.files[0])}
-          />
-        </label>
-        {error && <p style={{ color: '#f87171' }}>{error}</p>}
-        <button type="submit" disabled={saving}>
-          {saving ? 'Guardando...' : 'Guardar cambios'}
-        </button>
-      </form>
     </div>
   );
 }

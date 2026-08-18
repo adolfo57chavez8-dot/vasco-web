@@ -20,19 +20,54 @@ export default function FeedPage() {
       .eq('deleted', false)
       .order('created_at', { ascending: false });
 
-    if (!error) setPosts(data || []);
+    if (error || !data) {
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
+
+    const userIds = [...new Set(data.map((p) => p.user_id).filter(Boolean))];
+    let profileMap = {};
+
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .in('id', userIds);
+
+      profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
+    }
+
+    const enriched = data.map((p) => ({ ...p, author: profileMap[p.user_id] || null }));
+    setPosts(enriched);
     setLoading(false);
   };
 
-  if (loading) return <p>Cargando...</p>;
-  if (posts.length === 0) return <p>Todavía no hay publicaciones.</p>;
-
   return (
     <div>
-      <h1>Feed</h1>
+      <div className="page-header">
+        <span className="page-eyebrow">En vivo</span>
+        <h1>Feed</h1>
+        <p className="page-subtitle">Lo último de la comunidad, minuto a minuto.</p>
+      </div>
+
+      {loading && (
+        <div className="state-block">
+          <div className="state-title">Cargando...</div>
+        </div>
+      )}
+
+      {!loading && posts.length === 0 && (
+        <div className="state-block">
+          <div className="state-title">Todavía no hay publicaciones</div>
+          <p>Sé el primero en compartir algo en <a href="/upload">Publicar</a>.</p>
+        </div>
+      )}
+
       {posts.map((post) => (
         <PostCard key={post.id} post={post} />
       ))}
     </div>
   );
 }
+
