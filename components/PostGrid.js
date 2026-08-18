@@ -26,8 +26,10 @@ export default function PostGrid({ posts, onSelect, emptyText }) {
           ) : (
             <img src={post.file_url} alt={post.description || ''} loading="lazy" />
           )}
+          {post.hidden && <span className="grid-thumb-badge grid-thumb-hidden">🙈 Oculto</span>}
         </button>
       ))}
     </div>
   );
 }
+

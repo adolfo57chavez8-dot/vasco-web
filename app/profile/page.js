@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 import PostGrid from '../../components/PostGrid';
 import PostCard from '../../components/PostCard';
 import HamburgerMenu from '../../components/HamburgerMenu';
+import CreatePostModal from '../../components/CreatePostModal';
 
 export default function ProfilePage() {
   return (
@@ -23,10 +24,13 @@ function ProfilePageInner() {
   const [userId, setUserId] = useState(null);
   const [posts, setPosts] = useState([]);
   const [savedPosts, setSavedPosts] = useState([]);
+  const [trashPosts, setTrashPosts] = useState([]);
   const [tab, setTab] = useState(initialTab);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [trashWorkingId, setTrashWorkingId] = useState(null);
 
   useEffect(() => {
     loadProfile();
@@ -49,17 +53,23 @@ function ProfilePageInner() {
       .single();
     setProfile(data);
 
+    await loadGallery(userData.user.id, data);
+    await loadSaved(userData.user.id);
+    await loadTrash(userData.user.id);
+    setLoading(false);
+  };
+
+  const loadGallery = async (uid, profileData) => {
+    // El dueño ve también sus publicaciones ocultas (con una insignia),
+    // pero nunca las que están en la Papelera.
     const { data: postsData } = await supabase
       .from('posts')
       .select('*')
-      .eq('user_id', userData.user.id)
+      .eq('user_id', uid)
       .eq('deleted', false)
       .order('created_at', { ascending: false });
-    const enriched = (postsData || []).map((p) => ({ ...p, author: data }));
+    const enriched = (postsData || []).map((p) => ({ ...p, author: profileData }));
     setPosts(enriched);
-
-    await loadSaved(userData.user.id);
-    setLoading(false);
   };
 
   const loadSaved = async (uid) => {
@@ -79,7 +89,8 @@ function ProfilePageInner() {
       .from('posts')
       .select('*')
       .in('id', postIds)
-      .eq('deleted', false);
+      .eq('deleted', false)
+      .eq('hidden', false);
 
     const authorIds = [...new Set((postsData || []).map((p) => p.user_id))];
     const { data: authors } = await supabase
@@ -94,6 +105,49 @@ function ProfilePageInner() {
       .sort((a, b) => order[a.id] - order[b.id]);
 
     setSavedPosts(enriched);
+  };
+
+  const loadTrash = async (uid) => {
+    const { data } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('user_id', uid)
+      .eq('deleted', true)
+      .order('deleted_at', { ascending: false });
+    setTrashPosts(data || []);
+  };
+
+  const refreshAll = async () => {
+    if (!userId) return;
+    await loadGallery(userId, profile);
+    await loadSaved(userId);
+    await loadTrash(userId);
+  };
+
+  const handlePostChanged = async (postId) => {
+    if (selectedPost?.id === postId) setSelectedPost(null);
+    await refreshAll();
+  };
+
+  const handleRestore = async (post) => {
+    setTrashWorkingId(post.id);
+    await supabase.from('posts').update({ deleted: false, deleted_at: null }).eq('id', post.id);
+    setTrashWorkingId(null);
+    refreshAll();
+  };
+
+  const handlePermanentDelete = async (post) => {
+    setTrashWorkingId(post.id);
+    await supabase.from('posts').delete().eq('id', post.id);
+    try {
+      const cleanUrl = (post.file_url || '').split('?')[0];
+      const path = decodeURIComponent(cleanUrl.split('/posts-media/')[1] || '');
+      if (path) await supabase.storage.from('posts-media').remove([path]);
+    } catch (_) {
+      // no bloquea si falla
+    }
+    setTrashWorkingId(null);
+    refreshAll();
   };
 
   if (loading) {
@@ -113,7 +167,7 @@ function ProfilePageInner() {
     );
   }
 
-  const gridPosts = tab === 'galeria' ? posts : savedPosts;
+  const gridPosts = tab === 'galeria' ? posts : tab === 'coleccion' ? savedPosts : [];
 
   return (
     <div>
@@ -146,13 +200,65 @@ function ProfilePageInner() {
         >
           Colección
         </button>
+        <button
+          className={`profile-tab${tab === 'papelera' ? ' active' : ''}`}
+          onClick={() => setTab('papelera')}
+        >
+          Papelera{trashPosts.length > 0 ? ` (${trashPosts.length})` : ''}
+        </button>
+        <button
+          type="button"
+          className="profile-tab-create"
+          onClick={() => setCreateOpen(true)}
+          aria-label="Crear publicación"
+          title="Crear publicación"
+        >
+          +
+        </button>
       </div>
 
-      <PostGrid
-        posts={gridPosts}
-        onSelect={setSelectedPost}
-        emptyText={tab === 'galeria' ? 'Sin publicaciones todavía' : 'No has guardado nada en tu Colección'}
-      />
+      {tab === 'papelera' ? (
+        trashPosts.length === 0 ? (
+          <div className="state-block">
+            <div className="state-title">Tu papelera está vacía</div>
+          </div>
+        ) : (
+          <div className="post-grid">
+            {trashPosts.map((item) => (
+              <div key={item.id} className="grid-thumb trash-thumb">
+                {item.content_type === 'video' ? (
+                  <video src={item.file_url} muted playsInline />
+                ) : (
+                  <img src={item.file_url} alt={item.description || ''} />
+                )}
+                <div className="trash-thumb-actions">
+                  <button
+                    type="button"
+                    onClick={() => handleRestore(item)}
+                    disabled={trashWorkingId === item.id}
+                  >
+                    Restaurar
+                  </button>
+                  <button
+                    type="button"
+                    className="post-menu-danger"
+                    onClick={() => handlePermanentDelete(item)}
+                    disabled={trashWorkingId === item.id}
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+        <PostGrid
+          posts={gridPosts}
+          onSelect={setSelectedPost}
+          emptyText={tab === 'galeria' ? 'Sin publicaciones todavía' : 'No has guardado nada en tu Colección'}
+        />
+      )}
 
       {selectedPost && (
         <div className="post-modal-overlay" onClick={() => setSelectedPost(null)}>
@@ -162,13 +268,25 @@ function ProfilePageInner() {
               post={selectedPost}
               currentUserId={userId}
               onSaveChange={() => loadSaved(userId)}
+              onPostChanged={handlePostChanged}
             />
           </div>
         </div>
+      )}
+
+      {createOpen && (
+        <CreatePostModal
+          onClose={() => setCreateOpen(false)}
+          onCreated={() => {
+            setTab('galeria');
+            refreshAll();
+          }}
+        />
       )}
 
       <HamburgerMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   );
 }
+
 

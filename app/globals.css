@@ -853,3 +853,215 @@ button {
   color: var(--accent);
 }
 
+/* ===== Menú de opciones de publicación (⋮) ===== */
+.post-menu {
+  position: relative;
+  margin-left: auto;
+}
+
+.post-menu-trigger {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.post-menu-trigger:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.post-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+}
+
+.post-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  z-index: 56;
+  overflow: hidden;
+}
+
+.post-menu-dropdown button {
+  background: none;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.post-menu-dropdown button:hover {
+  background: var(--surface-hover);
+}
+
+.post-menu-danger,
+.post-menu-danger:hover {
+  color: var(--danger);
+}
+
+.post-menu-error {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.2rem;
+  width: max-content;
+  max-width: 220px;
+}
+
+.post-hidden-note {
+  margin: -0.3rem 0 0.6rem;
+}
+
+.grid-thumb-hidden {
+  left: 6px;
+  right: auto;
+}
+
+/* ===== Botón + para crear desde el perfil ===== */
+.profile-tab-create {
+  margin-left: auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-tab-create:hover {
+  background: var(--accent-dark);
+}
+
+.create-post-modal {
+  max-width: 420px;
+}
+
+.create-post-card {
+  padding: 1.25rem;
+}
+
+.create-post-title {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.create-type-choice {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.create-type-choice .btn {
+  flex: 1;
+}
+
+/* ===== Papelera ===== */
+.trash-thumb {
+  cursor: default;
+}
+
+.trash-thumb-actions {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: linear-gradient(0deg, rgba(4, 10, 15, 0.85), transparent);
+}
+
+.trash-thumb-actions button {
+  flex: 1;
+  background: rgba(4, 10, 15, 0.7);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.65rem;
+  padding: 4px 6px;
+  border-radius: 999px;
+}
+
+/* ===== Notificaciones ===== */
+.notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.notif-item {
+  padding: 0.9rem 1rem;
+}
+
+.notif-item.unread {
+  border-color: var(--accent);
+}
+
+.notif-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.notif-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.notif-avatar-placeholder {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  color: var(--text-muted);
+}
+
+.notif-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-text {
+  margin: 0 0 0.15rem;
+  font-size: 0.9rem;
+}
+
+.notif-thumb {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.notif-actions {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+
+

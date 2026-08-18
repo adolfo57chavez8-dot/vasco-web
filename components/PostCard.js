@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
 import ProtectedMedia from './ProtectedMedia';
+import PostOptionsMenu from './PostOptionsMenu';
 
 const REACTIONS = [
   { type: 'like', emoji: '👍' },
@@ -40,7 +41,7 @@ function buildCommentTree(flatComments) {
   return roots;
 }
 
-export default function PostCard({ post, currentUserId, onSaveChange }) {
+export default function PostCard({ post, currentUserId, onSaveChange, onPostChanged }) {
   const router = useRouter();
   const [reactionCounts, setReactionCounts] = useState({});
   const [totalReactions, setTotalReactions] = useState(0);
@@ -52,12 +53,25 @@ export default function PostCard({ post, currentUserId, onSaveChange }) {
   const [replyText, setReplyText] = useState('');
   const [authorMap, setAuthorMap] = useState({});
   const [saved, setSaved] = useState(false);
+  const [viewerId, setViewerId] = useState(currentUserId || null);
 
   useEffect(() => {
     loadReactions();
-    if (currentUserId) checkSaved();
+    resolveViewer();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const resolveViewer = async () => {
+    if (currentUserId) {
+      setViewerId(currentUserId);
+      checkSaved(currentUserId);
+      return;
+    }
+    const { data } = await supabase.auth.getUser();
+    const uid = data?.user?.id || null;
+    setViewerId(uid);
+    if (uid) checkSaved(uid);
+  };
 
   const loadReactions = async () => {
     const { data } = await supabase
@@ -73,12 +87,12 @@ export default function PostCard({ post, currentUserId, onSaveChange }) {
     setTotalReactions((data || []).length);
   };
 
-  const checkSaved = async () => {
+  const checkSaved = async (uid) => {
     const { data } = await supabase
       .from('saved_posts')
       .select('id')
       .eq('post_id', post.id)
-      .eq('user_id', currentUserId)
+      .eq('user_id', uid)
       .maybeSingle();
     setSaved(!!data);
   };
@@ -126,6 +140,17 @@ export default function PostCard({ post, currentUserId, onSaveChange }) {
       user_id: user.id,
       reaction_type: type,
     });
+
+    if (post.user_id && post.user_id !== user.id) {
+      await supabase.from('notifications').insert({
+        recipient_id: post.user_id,
+        actor_id: user.id,
+        post_id: post.id,
+        type: 'reaction',
+        reaction_type: type,
+      });
+    }
+
     loadReactions();
   };
 
@@ -135,11 +160,23 @@ export default function PostCard({ post, currentUserId, onSaveChange }) {
     const user = await requireSession();
     if (!user) return;
 
-    await supabase.from('comments').insert({
-      post_id: post.id,
-      user_id: user.id,
-      content: newComment,
-    });
+    const { data: inserted, error } = await supabase
+      .from('comments')
+      .insert({ post_id: post.id, user_id: user.id, content: newComment })
+      .select()
+      .single();
+
+    if (!error && inserted && post.user_id && post.user_id !== user.id) {
+      await supabase.from('notifications').insert({
+        recipient_id: post.user_id,
+        actor_id: user.id,
+        post_id: post.id,
+        comment_id: inserted.id,
+        type: 'comment',
+        content: newComment,
+      });
+    }
+
     setNewComment('');
     loadComments();
   };
@@ -149,12 +186,24 @@ export default function PostCard({ post, currentUserId, onSaveChange }) {
     const user = await requireSession();
     if (!user) return;
 
-    await supabase.from('comments').insert({
-      post_id: post.id,
-      user_id: user.id,
-      content: replyText,
-      parent_comment_id: parentId,
-    });
+    const { error } = await supabase
+      .from('comments')
+      .insert({ post_id: post.id, user_id: user.id, content: replyText, parent_comment_id: parentId });
+
+    if (!error) {
+      const parentAuthorId = comments.find((c) => c.id === parentId)?.user_id;
+      if (parentAuthorId && parentAuthorId !== user.id) {
+        await supabase.from('notifications').insert({
+          recipient_id: parentAuthorId,
+          actor_id: user.id,
+          post_id: post.id,
+          comment_id: parentId,
+          type: 'reply',
+          content: replyText,
+        });
+      }
+    }
+
     setReplyText('');
     setReplyTo(null);
     loadComments();
@@ -236,7 +285,18 @@ export default function PostCard({ post, currentUserId, onSaveChange }) {
           <div className="post-author-name">@{authorName}</div>
           <div className="post-author-time">{timeAgo(post.created_at)}</div>
         </div>
+
+        {viewerId && post.user_id === viewerId && (
+          <PostOptionsMenu
+            post={post}
+            onChanged={() => onPostChanged && onPostChanged(post.id)}
+          />
+        )}
       </div>
+
+      {post.hidden && (
+        <p className="hint-text post-hidden-note">🙈 Solo tú ves esta publicación (está oculta).</p>
+      )}
 
       {post.description && <p className="post-description">{post.description}</p>}
 

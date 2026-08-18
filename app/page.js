@@ -18,6 +18,7 @@ export default function FeedPage() {
       .from('posts')
       .select('*')
       .eq('deleted', false)
+      .eq('hidden', false)
       .order('created_at', { ascending: false });
 
     if (error || !data) {
@@ -65,9 +66,11 @@ export default function FeedPage() {
       )}
 
       {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
+        <PostCard key={post.id} post={post} onPostChanged={loadPosts} />
       ))}
     </div>
   );
 }
+
+
 

@@ -57,6 +57,7 @@ export default function PublicProfilePage() {
       .select('*')
       .eq('user_id', profileData.id)
       .eq('deleted', false)
+      .eq('hidden', false)
       .order('created_at', { ascending: false });
 
     const enriched = (postsData || []).map((p) => ({ ...p, author: profileData }));
@@ -120,11 +121,13 @@ export default function PublicProfilePage() {
         <div className="post-modal-overlay" onClick={() => setSelectedPost(null)}>
           <div className="post-modal" onClick={(e) => e.stopPropagation()}>
             <button className="post-modal-close" onClick={() => setSelectedPost(null)}>✕</button>
-            <PostCard post={selectedPost} currentUserId={currentUserId} />
+            <PostCard post={selectedPost} currentUserId={currentUserId} onPostChanged={loadPublicProfile} />
           </div>
         </div>
       )}
     </div>
   );
 }
+
+
 
