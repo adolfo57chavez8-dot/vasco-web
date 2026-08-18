@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '../../../lib/supabaseClient';
+import PostGrid from '../../../components/PostGrid';
 import PostCard from '../../../components/PostCard';
 
 export default function PublicProfilePage() {
@@ -11,8 +12,10 @@ export default function PublicProfilePage() {
 
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [selectedPost, setSelectedPost] = useState(null);
 
   useEffect(() => {
     loadPublicProfile();
@@ -22,6 +25,10 @@ export default function PublicProfilePage() {
   const loadPublicProfile = async () => {
     setLoading(true);
     setNotFound(false);
+
+    const { data: userData } = await supabase.auth.getUser();
+    const viewerId = userData?.user?.id || null;
+    setCurrentUserId(viewerId);
 
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
@@ -36,6 +43,14 @@ export default function PublicProfilePage() {
     }
 
     setProfile(profileData);
+
+    const isOwner = viewerId && viewerId === profileData.id;
+
+    if (profileData.is_private && !isOwner) {
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
 
     const { data: postsData } = await supabase
       .from('posts')
@@ -66,6 +81,9 @@ export default function PublicProfilePage() {
     );
   }
 
+  const isOwner = currentUserId && currentUserId === profile.id;
+  const isPrivateBlocked = profile.is_private && !isOwner;
+
   return (
     <div>
       <div className="card profile-hero">
@@ -77,20 +95,36 @@ export default function PublicProfilePage() {
           </div>
         )}
         <div className="profile-username">@{profile.username}</div>
-        <p className="page-subtitle" style={{ marginTop: '0.4rem' }}>
-          {posts.length} publicación{posts.length === 1 ? '' : 'es'}
-        </p>
+        {!isPrivateBlocked && (
+          <p className="page-subtitle" style={{ marginTop: '0.4rem' }}>
+            {posts.length} publicación{posts.length === 1 ? '' : 'es'}
+          </p>
+        )}
       </div>
 
-      {posts.length === 0 && (
+      {isPrivateBlocked ? (
         <div className="state-block">
-          <div className="state-title">Sin publicaciones todavía</div>
+          <div className="state-title">Esta cuenta es privada</div>
+          <p>Solo el dueño del perfil puede ver sus publicaciones.</p>
         </div>
+      ) : (
+        <>
+          <div className="profile-tabs">
+            <button className="profile-tab active">Galería</button>
+          </div>
+          <PostGrid posts={posts} onSelect={setSelectedPost} emptyText="Sin publicaciones todavía" />
+        </>
       )}
 
-      {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
-      ))}
+      {selectedPost && (
+        <div className="post-modal-overlay" onClick={() => setSelectedPost(null)}>
+          <div className="post-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="post-modal-close" onClick={() => setSelectedPost(null)}>✕</button>
+            <PostCard post={selectedPost} currentUserId={currentUserId} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

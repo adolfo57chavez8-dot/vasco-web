@@ -605,3 +605,251 @@ button {
   margin-top: 0.4rem;
   min-height: 1em;
 }
+
+/* ===== Perfil estilo VSCO: pestañas + grilla ===== */
+.hamburger-btn {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  width: 38px;
+  height: 38px;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-hero {
+  position: relative;
+}
+
+.profile-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-tab {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 2px solid transparent;
+}
+
+.profile-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.post-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+
+.grid-thumb {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: var(--bg-elevated);
+  border: none;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.grid-thumb img,
+.grid-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.grid-thumb-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(12, 26, 38, 0.6);
+  color: var(--text);
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+/* Modal para ver una publicación de la grilla */
+.post-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 10, 15, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 3rem 1rem;
+  overflow-y: auto;
+}
+
+.post-modal {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+}
+
+.post-modal-close {
+  position: absolute;
+  top: -2.4rem;
+  right: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+}
+
+/* ===== Menú hamburguesa ===== */
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 10, 15, 0.6);
+  z-index: 70;
+  display: flex;
+}
+
+.menu-panel {
+  position: relative;
+  width: min(300px, 82vw);
+  height: 100%;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.menu-close {
+  align-self: flex-end;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.menu-item {
+  display: block;
+  padding: 0.75rem 0.5rem;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  background: none;
+  border: none;
+  text-align: left;
+  width: 100%;
+}
+
+.menu-item:hover {
+  background: var(--surface-hover);
+}
+
+.menu-signout {
+  margin-top: auto;
+  color: var(--danger);
+}
+
+/* ===== Ajustes ===== */
+.settings-links {
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.settings-row-title {
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+/* ===== Selector de cámara / archivo ===== */
+.media-picker-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.media-picker-filename {
+  margin-top: 0.4rem;
+}
+
+/* ===== Carpeta segura ===== */
+.secure-thumb {
+  cursor: default;
+}
+
+.secure-thumb-delete {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(4, 10, 15, 0.7);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-size: 0.65rem;
+  padding: 3px 7px;
+  border-radius: 999px;
+}
+
+/* ===== Comentarios: autor + respuestas ===== */
+.comment-author {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.comment-reply-toggle {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 0.15rem 0 0.4rem;
+}
+
+.comment-reply-toggle:hover {
+  color: var(--accent);
+}
+
+.reaction-total {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin: 0.4rem 0 0;
+}
+
+.save-btn.saved {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+

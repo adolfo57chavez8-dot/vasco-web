@@ -1,21 +1,36 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
+import PostGrid from '../../components/PostGrid';
+import PostCard from '../../components/PostCard';
+import HamburgerMenu from '../../components/HamburgerMenu';
 
 export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div className="state-block"><div className="state-title">Cargando...</div></div>}>
+      <ProfilePageInner />
+    </Suspense>
+  );
+}
+
+function ProfilePageInner() {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'coleccion' ? 'coleccion' : 'galeria';
+
   const [profile, setProfile] = useState(null);
-  const [username, setUsername] = useState('');
-  const [avatarFile, setAvatarFile] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [savedPosts, setSavedPosts] = useState([]);
+  const [tab, setTab] = useState(initialTab);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [origin, setOrigin] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedPost, setSelectedPost] = useState(null);
 
   useEffect(() => {
     loadProfile();
-    if (typeof window !== 'undefined') setOrigin(window.location.origin);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadProfile = async () => {
@@ -25,77 +40,60 @@ export default function ProfilePage() {
       setLoading(false);
       return;
     }
+    setUserId(userData.user.id);
 
     const { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userData.user.id)
       .single();
-
     setProfile(data);
-    setUsername(data?.username || '');
+
+    const { data: postsData } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('user_id', userData.user.id)
+      .eq('deleted', false)
+      .order('created_at', { ascending: false });
+    const enriched = (postsData || []).map((p) => ({ ...p, author: data }));
+    setPosts(enriched);
+
+    await loadSaved(userData.user.id);
     setLoading(false);
   };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
+  const loadSaved = async (uid) => {
+    const { data: savedRows } = await supabase
+      .from('saved_posts')
+      .select('post_id, created_at')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false });
 
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) {
-      setError('No has iniciado sesión.');
-      setSaving(false);
+    const postIds = (savedRows || []).map((r) => r.post_id);
+    if (postIds.length === 0) {
+      setSavedPosts([]);
       return;
     }
 
-    let avatarUrl = profile?.avatar_url;
+    const { data: postsData } = await supabase
+      .from('posts')
+      .select('*')
+      .in('id', postIds)
+      .eq('deleted', false);
 
-    if (avatarFile) {
-      const ext = avatarFile.name.split('.').pop();
-      const filePath = `${userData.user.id}/avatar.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, avatarFile, { upsert: true });
-
-      if (uploadError) {
-        setError(uploadError.message);
-        setSaving(false);
-        return;
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-      avatarUrl = publicUrlData.publicUrl;
-    }
-
-    const { error: updateError } = await supabase
+    const authorIds = [...new Set((postsData || []).map((p) => p.user_id))];
+    const { data: authors } = await supabase
       .from('profiles')
-      .update({ username, avatar_url: avatarUrl, updated_at: new Date().toISOString() })
-      .eq('id', userData.user.id);
+      .select('id, username, avatar_url')
+      .in('id', authorIds);
+    const authorMap = Object.fromEntries((authors || []).map((a) => [a.id, a]));
 
-    setSaving(false);
+    const order = Object.fromEntries(postIds.map((id, i) => [id, i]));
+    const enriched = (postsData || [])
+      .map((p) => ({ ...p, author: authorMap[p.user_id] || null }))
+      .sort((a, b) => order[a.id] - order[b.id]);
 
-    if (updateError) {
-      setError(updateError.message);
-    } else {
-      loadProfile();
-    }
-  };
-
-  const publicLink = profile?.username ? `${origin}/u/${profile.username}` : '';
-
-  const handleCopy = async () => {
-    if (!publicLink) return;
-    try {
-      await navigator.clipboard.writeText(publicLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
-    }
+    setSavedPosts(enriched);
   };
 
   if (loading) {
@@ -115,9 +113,13 @@ export default function ProfilePage() {
     );
   }
 
+  const gridPosts = tab === 'galeria' ? posts : savedPosts;
+
   return (
     <div>
       <div className="card profile-hero">
+        <button className="hamburger-btn" onClick={() => setMenuOpen(true)} aria-label="Menú">☰</button>
+
         {profile.avatar_url ? (
           <img src={profile.avatar_url} alt="avatar" className="avatar" />
         ) : (
@@ -126,55 +128,47 @@ export default function ProfilePage() {
           </div>
         )}
         <div className="profile-username">@{profile.username || 'sin-nombre'}</div>
+        <p className="page-subtitle" style={{ marginTop: '0.3rem' }}>
+          {posts.length} publicación{posts.length === 1 ? '' : 'es'}
+        </p>
       </div>
 
-      <div className="card" style={{ padding: '1.25rem' }}>
-        <div className="page-header" style={{ marginBottom: '1rem' }}>
-          <span className="page-eyebrow">Editar</span>
-          <h2 style={{ margin: 0 }}>Mi perfil</h2>
-        </div>
-
-        <form onSubmit={handleSave} className="form">
-          <div className="field">
-            <label className="label">Nombre de usuario</label>
-            <input
-              className="input"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
-          </div>
-          <div className="field">
-            <label className="label">Cambiar avatar</label>
-            <input
-              className="file-input"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(e) => setAvatarFile(e.target.files[0])}
-            />
-          </div>
-          {error && <p className="error-text">{error}</p>}
-          <button type="submit" className="btn btn-primary btn-block" disabled={saving}>
-            {saving ? 'Guardando...' : 'Guardar cambios'}
-          </button>
-        </form>
+      <div className="profile-tabs">
+        <button
+          className={`profile-tab${tab === 'galeria' ? ' active' : ''}`}
+          onClick={() => setTab('galeria')}
+        >
+          Galería
+        </button>
+        <button
+          className={`profile-tab${tab === 'coleccion' ? ' active' : ''}`}
+          onClick={() => setTab('coleccion')}
+        >
+          Colección
+        </button>
       </div>
 
-      {profile.username && (
-        <div className="card share-box">
-          <label className="label">Tu link público para compartir</label>
-          <div className="share-row">
-            <input className="input" readOnly value={publicLink} onClick={(e) => e.target.select()} />
-            <button type="button" className="btn btn-ghost" onClick={handleCopy}>
-              Copiar
-            </button>
+      <PostGrid
+        posts={gridPosts}
+        onSelect={setSelectedPost}
+        emptyText={tab === 'galeria' ? 'Sin publicaciones todavía' : 'No has guardado nada en tu Colección'}
+      />
+
+      {selectedPost && (
+        <div className="post-modal-overlay" onClick={() => setSelectedPost(null)}>
+          <div className="post-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="post-modal-close" onClick={() => setSelectedPost(null)}>✕</button>
+            <PostCard
+              post={selectedPost}
+              currentUserId={userId}
+              onSaveChange={() => loadSaved(userId)}
+            />
           </div>
-          <p className="copy-feedback">{copied ? '¡Copiado!' : ''}</p>
-          <p className="hint-text">
-            Cualquiera puede abrir este link para ver tus publicaciones, reaccionar y comentar. Necesitan crear una cuenta para participar.
-          </p>
         </div>
       )}
+
+      <HamburgerMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   );
 }
+

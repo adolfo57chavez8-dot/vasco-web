@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
+import MediaPicker from '../../components/MediaPicker';
 
 export default function UploadPage() {
   const router = useRouter();
@@ -73,12 +74,10 @@ export default function UploadPage() {
         <form onSubmit={handleSubmit} className="form">
           <div className="field">
             <label className="label">Foto o video</label>
-            <input
-              className="file-input"
-              type="file"
+            <MediaPicker
+              file={file}
+              onChange={setFile}
               accept="image/png,image/jpeg,image/webp,video/mp4,video/webm"
-              onChange={(e) => setFile(e.target.files[0])}
-              required
             />
           </div>
           <div className="field">
@@ -100,4 +99,6 @@ export default function UploadPage() {
     </div>
   );
 }
+
+
 

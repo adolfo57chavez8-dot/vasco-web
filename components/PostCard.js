@@ -25,16 +25,38 @@ function timeAgo(dateStr) {
   return `hace ${days} d`;
 }
 
-export default function PostCard({ post }) {
+// Organiza comentarios planos en árbol: comentarios de primer nivel + sus respuestas
+function buildCommentTree(flatComments) {
+  const byId = {};
+  flatComments.forEach((c) => { byId[c.id] = { ...c, replies: [] }; });
+  const roots = [];
+  flatComments.forEach((c) => {
+    if (c.parent_comment_id && byId[c.parent_comment_id]) {
+      byId[c.parent_comment_id].replies.push(byId[c.id]);
+    } else {
+      roots.push(byId[c.id]);
+    }
+  });
+  return roots;
+}
+
+export default function PostCard({ post, currentUserId, onSaveChange }) {
   const router = useRouter();
   const [reactionCounts, setReactionCounts] = useState({});
+  const [totalReactions, setTotalReactions] = useState(0);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [showComments, setShowComments] = useState(false);
   const [notice, setNotice] = useState('');
+  const [replyTo, setReplyTo] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [authorMap, setAuthorMap] = useState({});
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     loadReactions();
+    if (currentUserId) checkSaved();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadReactions = async () => {
@@ -48,15 +70,36 @@ export default function PostCard({ post }) {
       counts[r.reaction_type] = (counts[r.reaction_type] || 0) + 1;
     });
     setReactionCounts(counts);
+    setTotalReactions((data || []).length);
+  };
+
+  const checkSaved = async () => {
+    const { data } = await supabase
+      .from('saved_posts')
+      .select('id')
+      .eq('post_id', post.id)
+      .eq('user_id', currentUserId)
+      .maybeSingle();
+    setSaved(!!data);
   };
 
   const loadComments = async () => {
     const { data } = await supabase
       .from('comments')
-      .select('id, content, created_at, user_id')
+      .select('id, content, created_at, user_id, parent_comment_id')
       .eq('post_id', post.id)
       .order('created_at', { ascending: true });
-    setComments(data || []);
+
+    const list = data || [];
+    const userIds = [...new Set(list.map((c) => c.user_id).filter(Boolean))];
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .in('id', userIds);
+      setAuthorMap(Object.fromEntries((profiles || []).map((p) => [p.id, p])));
+    }
+    setComments(list);
   };
 
   const toggleComments = () => {
@@ -99,6 +142,71 @@ export default function PostCard({ post }) {
     });
     setNewComment('');
     loadComments();
+  };
+
+  const submitReply = async (parentId) => {
+    if (!replyText.trim()) return;
+    const user = await requireSession();
+    if (!user) return;
+
+    await supabase.from('comments').insert({
+      post_id: post.id,
+      user_id: user.id,
+      content: replyText,
+      parent_comment_id: parentId,
+    });
+    setReplyText('');
+    setReplyTo(null);
+    loadComments();
+  };
+
+  const toggleSave = async () => {
+    const user = await requireSession();
+    if (!user) return;
+
+    if (saved) {
+      await supabase.from('saved_posts').delete().eq('post_id', post.id).eq('user_id', user.id);
+      setSaved(false);
+    } else {
+      await supabase.from('saved_posts').insert({ post_id: post.id, user_id: user.id });
+      setSaved(true);
+    }
+    if (onSaveChange) onSaveChange();
+  };
+
+  const commentTree = buildCommentTree(comments);
+
+  const renderComment = (c, depth = 0) => {
+    const author = authorMap[c.user_id];
+    const name = author?.username || 'usuario';
+    return (
+      <div key={c.id} style={{ marginLeft: depth ? 18 : 0 }}>
+        <div className="comment-item">
+          <span className="comment-author">@{name}</span> {c.content}
+        </div>
+        <button
+          type="button"
+          className="comment-reply-toggle"
+          onClick={() => setReplyTo(replyTo === c.id ? null : c.id)}
+        >
+          Responder
+        </button>
+        {replyTo === c.id && (
+          <div className="comment-form" style={{ marginTop: '0.4rem', marginBottom: '0.4rem' }}>
+            <input
+              className="input"
+              placeholder={`Responder a @${name}...`}
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+            />
+            <button type="button" className="btn btn-primary" onClick={() => submitReply(c.id)}>
+              Enviar
+            </button>
+          </div>
+        )}
+        {c.replies?.map((r) => renderComment(r, depth + 1))}
+      </div>
+    );
   };
 
   const authorName = post.author?.username || 'usuario';
@@ -148,7 +256,18 @@ export default function PostCard({ post }) {
             {reactionCounts[type] ? <span className="reaction-count">{reactionCounts[type]}</span> : null}
           </button>
         ))}
+        <button
+          className={`reaction-btn save-btn${saved ? ' saved' : ''}`}
+          onClick={toggleSave}
+          title={saved ? 'Quitar de Colección' : 'Guardar en Colección'}
+        >
+          <span>{saved ? '🔖' : '📑'}</span>
+        </button>
       </div>
+
+      {totalReactions > 0 && (
+        <p className="reaction-total">{totalReactions} reacción{totalReactions === 1 ? '' : 'es'} en total</p>
+      )}
 
       {notice && <p className="login-prompt">{notice} <a href="/login">Iniciar sesión</a></p>}
 
@@ -159,9 +278,7 @@ export default function PostCard({ post }) {
       {showComments && (
         <div className="comments-section">
           {comments.length === 0 && <p className="hint-text">Sé el primero en comentar.</p>}
-          {comments.map((c) => (
-            <p key={c.id} className="comment-item">{c.content}</p>
-          ))}
+          {commentTree.map((c) => renderComment(c))}
           <form onSubmit={submitComment} className="comment-form">
             <input
               className="input"
