@@ -161,7 +161,7 @@ function ProfilePageInner() {
   if (!profile) {
     return (
       <div className="state-block">
-        <div className="state-title">Inicia sesión para ver tu perfil</div>
+        <div className="state-title">Inicia sesión para ver tu perfil y para poder ver las publicaciones de este usuario</div>
         <p><a href="/login">Ir a iniciar sesión</a></p>
       </div>
     );

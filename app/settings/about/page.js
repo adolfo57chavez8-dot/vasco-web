@@ -8,7 +8,7 @@ export default function AboutPage() {
 
       <div className="card" style={{ padding: '1.25rem' }}>
         <p><strong>Vasco Web</strong></p>
-        <p className="hint-text">Comunidad de aficionados — comparte, reacciona y comenta.</p>
+        <p className="hint-text">Esta pagina es 100% segura aqui podras compartir fotos y videos  — comparte, reacciona y comenta  Derechos Reservados © .</p>
         <p className="hint-text">Versión 1.0</p>
       </div>
     </div>
