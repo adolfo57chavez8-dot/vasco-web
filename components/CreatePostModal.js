@@ -11,7 +11,7 @@ export default function CreatePostModal({ onClose, onCreated }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const accept = type === 'video' ? 'video/mp4,video/webm' : 'image/png,image/jpeg,image/webp';
+  const accept = type === 'video' ? 'video/mp4' : 'image/png,image/jpeg,image/webp';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -117,3 +117,4 @@ export default function CreatePostModal({ onClose, onCreated }) {
     </div>
   );
 }
+

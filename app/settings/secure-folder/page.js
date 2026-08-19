@@ -132,7 +132,7 @@ export default function SecureFolderPage() {
             <MediaPicker
               file={file}
               onChange={setFile}
-              accept="image/png,image/jpeg,image/webp,video/mp4,video/webm"
+              accept="image/png,image/jpeg,image/webp,video/mp4"
             />
           </div>
           <div className="field">

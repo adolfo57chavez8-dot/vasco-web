@@ -23,6 +23,8 @@ export default function ProtectedMedia({ type, src, alt, username }) {
         <video
           src={src}
           controls
+          playsInline
+          preload="metadata"
           controlsList="nodownload"
           onContextMenu={blockContextMenu}
           onDragStart={blockDrag}
@@ -46,3 +48,4 @@ export default function ProtectedMedia({ type, src, alt, username }) {
     </div>
   );
 }
+
