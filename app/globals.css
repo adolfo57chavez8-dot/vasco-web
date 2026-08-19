@@ -1,16 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
 
 :root {
-  --bg: #0c1a26;
-  --bg-elevated: #102232;
-  --surface: #142a3c;
-  --surface-hover: #1a3348;
-  --border: #24455f;
-  --text: #eef3f7;
-  --text-muted: #8fa8bd;
-  --accent: #f5a524;
-  --accent-dark: #c9840f;
-  --accent-ink: #201404;
+  --bg: #090909;
+  --bg-elevated: #111111;
+  --surface: #151515;
+  --surface-hover: #202020;
+  --border: #303030;
+  --text: #f5f5f2;
+  --text-muted: #a5a5a0;
+  --accent: #e8e6df;
+  --accent-dark: #c9c6bd;
+  --accent-ink: #101010;
   --danger: #f87171;
   --success: #4ade80;
   --radius-sm: 8px;
@@ -35,8 +35,7 @@ body {
   font-family: var(--font-body);
   color: var(--text);
   background:
-    radial-gradient(1100px 480px at 50% -12%, rgba(245, 165, 36, 0.10), transparent 60%),
-    radial-gradient(900px 400px at 100% 0%, rgba(56, 189, 248, 0.06), transparent 55%),
+    radial-gradient(900px 460px at 50% -18%, rgba(255, 255, 255, 0.07), transparent 62%),
     var(--bg);
   min-height: 100vh;
 }
@@ -114,7 +113,7 @@ button {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(12, 26, 38, 0.85);
+  background: rgba(9, 9, 9, 0.88);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
 }
@@ -390,14 +389,8 @@ button {
   object-fit: cover;
   -webkit-user-drag: none;
   user-select: none;
-}
-
-.protected-media img {
-  pointer-events: none;
-}
-
-.protected-media video {
   pointer-events: auto;
+  -webkit-touch-callout: none;
 }
 
 .protected-media.away img,
@@ -1068,6 +1061,225 @@ button {
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid var(--border);
+}
+
+
+
+
+/* ===== Vasco Web: experiencia social minimalista ===== */
+.nav-inner-main {
+  flex-wrap: wrap;
+}
+
+.nav-search {
+  flex: 1 1 240px;
+  max-width: 340px;
+  min-width: 150px;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.42rem 0.7rem;
+  color: var(--text-muted);
+}
+
+.nav-search:focus-within {
+  border-color: #777;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.06);
+}
+
+.nav-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.nav-search input::placeholder { color: #777; }
+
+.nav-search button {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  padding: 0;
+}
+
+.upload-card,
+.login-required-card {
+  padding: 1.25rem;
+}
+
+.upload-info-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #101010;
+}
+
+.upload-info-box strong { font-size: 0.85rem; }
+.upload-info-box span { color: var(--text-muted); font-size: 0.78rem; line-height: 1.45; }
+
+.media-picker-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.media-source-btn {
+  min-height: 52px;
+  justify-content: center;
+}
+
+.media-picker-camera-hint {
+  margin-top: 0.6rem;
+}
+
+.media-selected-file {
+  margin-top: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+}
+
+.media-selected-file > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.media-selected-file strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.media-selected-file span:last-child {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.media-selected-icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.post-file-name {
+  margin: 0 0 0.35rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  overflow-wrap: anywhere;
+}
+
+.share-post {
+  position: relative;
+}
+
+.share-trigger {
+  cursor: pointer;
+}
+
+.share-panel {
+  position: absolute;
+  z-index: 50;
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: 230px;
+  padding: 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #151515;
+  box-shadow: 0 18px 45px rgba(0,0,0,0.45);
+}
+
+.share-panel-title {
+  padding: 0.45rem 0.55rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.share-option {
+  width: 100%;
+  display: block;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-decoration: none;
+  padding: 0.65rem 0.55rem;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.share-option:hover { background: var(--surface-hover); }
+
+.public-post-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.public-post-back {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.public-post-back:hover { color: var(--text); }
+
+.create-post-title {
+  margin-top: 0.2rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.modal-actions .btn-primary { flex: 1; }
+
+@media (max-width: 720px) {
+  .container { padding-top: 1rem; }
+  .nav-inner-main { gap: 0.65rem; }
+  .nav-logo { flex: 0 0 auto; }
+  .nav-search { order: 3; flex-basis: 100%; max-width: none; }
+  .nav-links { width: 100%; justify-content: center; }
+  .nav-link { padding: 0.35rem 0.5rem; }
+}
+
+@media (max-width: 430px) {
+  .media-picker-buttons { grid-template-columns: 1fr; }
+  .reaction-bar { gap: 0.3rem; }
+  .reaction-btn { padding: 0.34rem 0.55rem; }
+  .share-panel { position: fixed; left: 1rem; right: 1rem; bottom: 1rem; width: auto; }
+  .modal-actions { flex-direction: column; }
 }
 
 

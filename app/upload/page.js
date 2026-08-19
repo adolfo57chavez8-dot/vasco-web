@@ -1,19 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 import MediaPicker from '../../components/MediaPicker';
-import { getMediaContentType, getSafeFileExtension, isVideoFile } from '../../lib/media';
-import { transcodeVideoToMp4 } from '../../lib/videoTranscoder';
+import { getMediaContentType, getSafeFileExtension, isVideoFile, sanitizeFileBaseName } from '../../lib/media';
 
 export default function UploadPage() {
   const router = useRouter();
   const [file, setFile] = useState(null);
+  const [customName, setCustomName] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [videoProgress, setVideoProgress] = useState(0);
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [session, setSession] = useState(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setSessionChecked(true);
+    });
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,28 +38,14 @@ export default function UploadPage() {
     }
 
     setLoading(true);
-
-    let uploadFile = file;
-    let isVideo = isVideoFile(file);
-
-    try {
-      if (isVideo) {
-        uploadFile = await transcodeVideoToMp4(file, (progress) => setVideoProgress(Math.round(progress * 100)));
-        setVideoProgress(100);
-      }
-    } catch (transcodeError) {
-      setError(transcodeError?.message || 'No se pudo preparar el video para reproducción web.');
-      setLoading(false);
-      return;
-    }
-
-    const contentType = getMediaContentType(uploadFile);
-    const ext = getSafeFileExtension(uploadFile, contentType);
-    const filePath = `${userData.user.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+    const contentType = getMediaContentType(file);
+    const ext = getSafeFileExtension(file, contentType);
+    const baseName = sanitizeFileBaseName(customName || file.name);
+    const filePath = `${userData.user.id}/${Date.now()}-${crypto.randomUUID()}-${baseName}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from('posts-media')
-      .upload(filePath, uploadFile, {
+      .upload(filePath, file, {
         contentType,
         cacheControl: '31536000',
         upsert: false,
@@ -69,9 +63,9 @@ export default function UploadPage() {
 
     const { error: insertError } = await supabase.from('posts').insert({
       user_id: userData.user.id,
-      content_type: isVideo ? 'video' : 'foto',
+      content_type: isVideoFile(file) ? 'video' : 'foto',
       file_url: publicUrlData.publicUrl,
-      description,
+      description: description.trim(),
     });
 
     setLoading(false);
@@ -83,6 +77,27 @@ export default function UploadPage() {
     }
   };
 
+  if (!sessionChecked) {
+    return <div className="state-block"><div className="state-title">Comprobando sesión...</div></div>;
+  }
+
+  if (!session) {
+    return (
+      <div>
+        <div className="page-header">
+          <span className="page-eyebrow">Publicar</span>
+          <h1>Inicia sesión</h1>
+          <p className="page-subtitle">Solo los usuarios registrados pueden subir publicaciones.</p>
+        </div>
+        <div className="card login-required-card">
+          <div className="state-title">Tu cuenta es necesaria</div>
+          <p className="hint-text">Inicia sesión o crea una cuenta para compartir fotos y videos.</p>
+          <a href="/login" className="btn btn-primary btn-block">Iniciar sesión</a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -91,7 +106,7 @@ export default function UploadPage() {
         <p className="page-subtitle">Comparte una foto o video con la comunidad.</p>
       </div>
 
-      <div className="card" style={{ padding: '1.25rem' }}>
+      <div className="card upload-card">
         <form onSubmit={handleSubmit} className="form">
           <div className="field">
             <label className="label">Foto o video</label>
@@ -101,9 +116,26 @@ export default function UploadPage() {
               accept="image/*,video/*"
             />
           </div>
+
+          {file && (
+            <div className="field">
+              <label className="label" htmlFor="custom-file-name">Nombre del archivo (opcional)</label>
+              <input
+                id="custom-file-name"
+                className="input"
+                placeholder="Ej. Mi viaje a la playa"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                maxLength={80}
+              />
+              <p className="hint-text">Puedes dejarlo vacío y Vasco Web conservará un nombre seguro basado en el archivo original.</p>
+            </div>
+          )}
+
           <div className="field">
-            <label className="label">Descripción (opcional)</label>
+            <label className="label" htmlFor="description">Descripción (opcional)</label>
             <textarea
+              id="description"
               className="textarea"
               placeholder="¿Qué estás compartiendo?"
               value={description}
@@ -111,18 +143,24 @@ export default function UploadPage() {
               rows={3}
             />
           </div>
-          {error && <p className="error-text">{error}</p>}
-          {loading && isVideoFile(file) && (
-            <p className="hint-text">Preparando video compatible: {videoProgress}%</p>
+
+          {file && isVideoFile(file) && (
+            <div className="upload-info-box">
+              <strong>Video seleccionado</strong>
+              <span>Se conservará el formato original. La reproducción final depende de los códecs compatibles con el dispositivo y navegador.</span>
+            </div>
           )}
+
+          {error && <p className="error-text">{error}</p>}
           <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-            {loading ? (isVideoFile(file) ? 'Convirtiendo y subiendo...' : 'Subiendo...') : 'Publicar'}
+            {loading ? 'Publicando...' : 'Publicar'}
           </button>
         </form>
       </div>
     </div>
   );
 }
+
 
 
 
