@@ -76,7 +76,8 @@ export default function PublicProfilePage() {
   if (notFound) {
     return (
       <div className="state-block">
-        <div className="state-title">este usuario no sera visible hasta que inicies sección No encontramos a @ {username}</div>
+        <div className="state-title"> No encontramos a @ {username}</div>
+        <p>EL PERFIL NO SE MUESTRA POR QUE NO TIENES UNA CUENTA CREADA.</p>
         <p>Revisa que el link esté escrito correctamente.</p>
       </div>
     );
