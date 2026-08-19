@@ -5,15 +5,16 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
 
 const MENU_ITEMS = [
-  { href: '/settings/notifications', label: 'Notificaciones' },
-  { href: '/profile?tab=coleccion', label: 'Favoritos' },
-  { href: '/settings', label: 'Ajustes' },
-  { href: '/settings/privacy', label: 'Privacidad y datos' },
-  { href: '/settings/security', label: 'Seguridad' },
-  { href: '/settings/about', label: 'Acerca de' },
+  { href: '/profile', label: 'Perfil', icon: '◯' },
+  { href: '/profile?tab=coleccion', label: 'Colección', icon: '▢' },
+  { href: '/settings/notifications', label: 'Notificaciones', icon: '◌' },
+  { href: '/settings', label: 'Ajustes', icon: '⚙' },
+  { href: '/settings/privacy', label: 'Privacidad y datos', icon: '◈' },
+  { href: '/settings/security', label: 'Seguridad', icon: '◇' },
+  { href: '/settings/about', label: 'Acerca de Vasco Web', icon: 'i' },
 ];
 
-export default function HamburgerMenu({ open, onClose }) {
+export default function HamburgerMenu({ open, onClose, session }) {
   const router = useRouter();
 
   const handleSignOut = async () => {
@@ -26,19 +27,37 @@ export default function HamburgerMenu({ open, onClose }) {
 
   return (
     <div className="menu-overlay" onClick={onClose}>
-      <div className="menu-panel" onClick={(e) => e.stopPropagation()}>
-        <button className="menu-close" onClick={onClose} aria-label="Cerrar">✕</button>
+      <aside className="menu-panel" onClick={(e) => e.stopPropagation()} aria-label="Menú principal">
+        <div className="menu-top">
+          <span className="menu-brand">VASCO<span>WEB</span></span>
+          <button className="menu-close" onClick={onClose} aria-label="Cerrar menú">×</button>
+        </div>
+
         <div className="menu-list">
           {MENU_ITEMS.map((item) => (
             <Link key={item.href} href={item.href} className="menu-item" onClick={onClose}>
-              {item.label}
+              <span className="menu-item-icon">{item.icon}</span>
+              <span>{item.label}</span>
             </Link>
           ))}
         </div>
-        <button className="menu-item menu-signout" onClick={handleSignOut}>
-          Cerrar sesión
-        </button>
-      </div>
+
+        <div className="menu-footer">
+          {session ? (
+            <button className="menu-item menu-signout" onClick={handleSignOut}>
+              <span className="menu-item-icon">↪</span>
+              <span>Cerrar sesión</span>
+            </button>
+          ) : (
+            <Link href="/login" className="menu-item" onClick={onClose}>
+              <span className="menu-item-icon">→</span>
+              <span>Iniciar sesión</span>
+            </Link>
+          )}
+          <p>VASCO WEB · Comunidad visual</p>
+        </div>
+      </aside>
     </div>
   );
 }
+

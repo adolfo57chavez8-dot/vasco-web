@@ -1,14 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import PostCard from '../components/PostCard';
-import { getFileNameFromUrl } from '../lib/media';
 
 export default function FeedPage() {
-  const searchParams = useSearchParams();
-  const query = (searchParams.get('q') || '').trim().toLowerCase();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,56 +35,41 @@ export default function FeedPage() {
         .from('profiles')
         .select('id, username, avatar_url')
         .in('id', userIds);
-
       profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
     }
 
-    const enriched = data.map((p) => ({ ...p, author: profileMap[p.user_id] || null }));
-    setPosts(enriched);
+    setPosts(data.map((p) => ({ ...p, author: profileMap[p.user_id] || null })));
     setLoading(false);
   };
 
-  const filteredPosts = useMemo(() => {
-    if (!query) return posts;
-    return posts.filter((post) => {
-      const haystack = [
-        post.description,
-        post.author?.username,
-        getFileNameFromUrl(post.file_url),
-      ].filter(Boolean).join(' ').toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [posts, query]);
-
   return (
-    <div>
+    <div className="feed-page">
       <div className="page-header feed-header">
         <span className="page-eyebrow">En vivo</span>
-        <h1>{query ? 'Buscar' : 'Feed'}</h1>
-        <p className="page-subtitle">
-          {query ? `Resultados para “${query}”.` : 'Lo último de la comunidad, minuto a minuto.'}
-        </p>
+        <h1>Feed</h1>
+        <p className="page-subtitle">Lo último de la comunidad, minuto a minuto.</p>
       </div>
 
       {loading && (
+        <div className="state-block"><div className="state-title">Cargando...</div></div>
+      )}
+
+      {!loading && posts.length === 0 && (
         <div className="state-block">
-          <div className="state-title">Cargando...</div>
+          <div className="state-title">Todavía no hay publicaciones</div>
+          <p>Sé el primero en compartir algo en <a href="/upload">Publicar</a>.</p>
         </div>
       )}
 
-      {!loading && filteredPosts.length === 0 && (
-        <div className="state-block">
-          <div className="state-title">{query ? 'No encontramos resultados' : 'Todavía no hay publicaciones'}</div>
-          <p>{query ? 'Prueba con otro nombre de archivo, usuario o palabra.' : <>Sé el primero en compartir algo en <a href="/upload">Publicar</a>.</>}</p>
-        </div>
-      )}
-
-      {filteredPosts.map((post) => (
-        <PostCard key={post.id} post={post} onPostChanged={loadPosts} />
-      ))}
+      <div className="feed-list">
+        {posts.map((post) => (
+          <PostCard key={post.id} post={post} onPostChanged={loadPosts} />
+        ))}
+      </div>
     </div>
   );
 }
+
 
 
 

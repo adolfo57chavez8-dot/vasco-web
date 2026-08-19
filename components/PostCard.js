@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
 import ProtectedMedia from './ProtectedMedia';
 import PostOptionsMenu from './PostOptionsMenu';
+import SharePost from './SharePost';
+import { getFileNameFromUrl } from '../lib/media';
 
 const REACTIONS = [
   { type: 'like', emoji: '👍' },
@@ -233,13 +235,15 @@ export default function PostCard({ post, currentUserId, onSaveChange, onPostChan
         <div className="comment-item">
           <span className="comment-author">@{name}</span> {c.content}
         </div>
-        <button
-          type="button"
-          className="comment-reply-toggle"
-          onClick={() => setReplyTo(replyTo === c.id ? null : c.id)}
-        >
-          Responder
-        </button>
+        {viewerId ? (
+          <button
+            type="button"
+            className="comment-reply-toggle"
+            onClick={() => setReplyTo(replyTo === c.id ? null : c.id)}
+          >
+            Responder
+          </button>
+        ) : null}
         {replyTo === c.id && (
           <div className="comment-form" style={{ marginTop: '0.4rem', marginBottom: '0.4rem' }}>
             <input
@@ -259,6 +263,7 @@ export default function PostCard({ post, currentUserId, onSaveChange, onPostChan
   };
 
   const authorName = post.author?.username || 'usuario';
+  const fileName = getFileNameFromUrl(post.file_url);
 
   return (
     <div className="card post-card">
@@ -298,6 +303,7 @@ export default function PostCard({ post, currentUserId, onSaveChange, onPostChan
         <p className="hint-text post-hidden-note">🙈 Solo tú ves esta publicación (está oculta).</p>
       )}
 
+      {fileName && <p className="post-file-name">{fileName}</p>}
       {post.description && <p className="post-description">{post.description}</p>}
 
       {(post.content_type === 'foto' || post.content_type === 'video') && post.file_url && (
@@ -323,6 +329,7 @@ export default function PostCard({ post, currentUserId, onSaveChange, onPostChan
         >
           <span>{saved ? '🔖' : '📑'}</span>
         </button>
+        <SharePost postId={post.id} title={`${authorName} en Vasco Web`} />
       </div>
 
       {totalReactions > 0 && (
@@ -339,17 +346,22 @@ export default function PostCard({ post, currentUserId, onSaveChange, onPostChan
         <div className="comments-section">
           {comments.length === 0 && <p className="hint-text">Sé el primero en comentar.</p>}
           {commentTree.map((c) => renderComment(c))}
-          <form onSubmit={submitComment} className="comment-form">
-            <input
-              className="input"
-              placeholder="Escribe un comentario..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-            />
-            <button type="submit" className="btn btn-primary">Enviar</button>
-          </form>
+          {viewerId ? (
+            <form onSubmit={submitComment} className="comment-form">
+              <input
+                className="input"
+                placeholder="Escribe un comentario..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+              />
+              <button type="submit" className="btn btn-primary">Enviar</button>
+            </form>
+          ) : (
+            <p className="login-prompt">Solo usuarios registrados pueden comentar. <a href="/login">Iniciar sesión</a></p>
+          )}
         </div>
       )}
     </div>
   );
 }
+

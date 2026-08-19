@@ -3,16 +3,15 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import MediaPicker from './MediaPicker';
-import { getMediaContentType, getSafeFileExtension, isVideoFile } from '../lib/media';
-import { transcodeVideoToMp4 } from '../lib/videoTranscoder';
+import { getMediaContentType, getSafeFileExtension, isVideoFile, sanitizeFileBaseName } from '../lib/media';
 
 export default function CreatePostModal({ onClose, onCreated }) {
-  const [type, setType] = useState(null); // 'foto' | 'video'
+  const [type, setType] = useState(null);
   const [file, setFile] = useState(null);
+  const [customName, setCustomName] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [videoProgress, setVideoProgress] = useState(0);
 
   const accept = type === 'video' ? 'video/*' : 'image/*';
 
@@ -31,28 +30,17 @@ export default function CreatePostModal({ onClose, onCreated }) {
     }
 
     setLoading(true);
-
-    let uploadFile = file;
-    let isVideo = isVideoFile(file);
-
-    try {
-      if (isVideo) {
-        uploadFile = await transcodeVideoToMp4(file, (progress) => setVideoProgress(Math.round(progress * 100)));
-        setVideoProgress(100);
-      }
-    } catch (transcodeError) {
-      setError(transcodeError?.message || 'No se pudo preparar el video para reproducción web.');
-      setLoading(false);
-      return;
-    }
-
-    const contentType = getMediaContentType(uploadFile);
-    const ext = getSafeFileExtension(uploadFile, contentType);
-    const filePath = `${userData.user.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+    const contentType = getMediaContentType(file);
+    const ext = getSafeFileExtension(file, contentType);
+    const baseName = sanitizeFileBaseName(customName || file.name);
+    const uuid = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const filePath = `${userData.user.id}/${Date.now()}-${uuid}-${baseName}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from('posts-media')
-      .upload(filePath, uploadFile, {
+      .upload(filePath, file, {
         contentType,
         cacheControl: '31536000',
         upsert: false,
@@ -70,19 +58,22 @@ export default function CreatePostModal({ onClose, onCreated }) {
 
     const { error: insertError } = await supabase.from('posts').insert({
       user_id: userData.user.id,
-      content_type: isVideo ? 'video' : 'foto',
+      content_type: isVideoFile(file) ? 'video' : 'foto',
       file_url: publicUrlData.publicUrl,
-      description,
+      description: description.trim(),
     });
 
     setLoading(false);
 
     if (insertError) {
+      await supabase.storage.from('posts-media').remove([filePath]);
       setError(insertError.message);
+      setLoading(false);
       return;
     }
 
     setFile(null);
+    setCustomName('');
     setDescription('');
     setType(null);
     if (onCreated) onCreated();
@@ -95,15 +86,16 @@ export default function CreatePostModal({ onClose, onCreated }) {
         <button className="post-modal-close" onClick={onClose} aria-label="Cerrar">✕</button>
 
         <div className="card create-post-card">
+          <span className="page-eyebrow">Nueva publicación</span>
           <h2 className="create-post-title">Crear publicación</h2>
 
           {!type ? (
             <div className="create-type-choice">
               <button type="button" className="btn btn-ghost" onClick={() => setType('foto')}>
-                🖼️ Imagen
+                ▣ Imagen
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => setType('video')}>
-                🎬 Video
+                ▶ Video
               </button>
             </div>
           ) : (
@@ -112,6 +104,21 @@ export default function CreatePostModal({ onClose, onCreated }) {
                 <label className="label">{type === 'video' ? 'Video' : 'Imagen'}</label>
                 <MediaPicker file={file} onChange={setFile} accept={accept} />
               </div>
+
+              {file && (
+                <div className="field">
+                  <label className="label" htmlFor="modal-file-name">Nombre del archivo (opcional)</label>
+                  <input
+                    id="modal-file-name"
+                    className="input"
+                    placeholder="Ponle un nombre"
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                    maxLength={80}
+                  />
+                </div>
+              )}
+
               <div className="field">
                 <label className="label">Descripción (opcional)</label>
                 <textarea
@@ -122,13 +129,11 @@ export default function CreatePostModal({ onClose, onCreated }) {
                   rows={3}
                 />
               </div>
+
               {error && <p className="error-text">{error}</p>}
-              {loading && isVideoFile(file) && (
-                <p className="hint-text">Preparando video compatible: {videoProgress}%</p>
-              )}
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div className="modal-actions">
                 <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-                  {loading ? (isVideoFile(file) ? 'Convirtiendo y publicando...' : 'Publicando...') : 'Publicar'}
+                  {loading ? 'Publicando...' : 'Publicar'}
                 </button>
                 <button type="button" className="btn btn-ghost" onClick={() => setType(null)} disabled={loading}>
                   Cambiar
@@ -141,6 +146,7 @@ export default function CreatePostModal({ onClose, onCreated }) {
     </div>
   );
 }
+
 
 
 

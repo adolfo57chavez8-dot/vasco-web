@@ -52,8 +52,9 @@ export async function generateMetadata({ params }) {
       description,
       url: `/post/${params.id}`,
       siteName: 'Vasco Web',
-      type: 'website',
+      type: post.content_type === 'video' ? 'video.other' : 'website',
       images: media,
+      videos: post.content_type === 'video' ? [{ url: post.file_url }] : undefined,
     },
     twitter: {
       card: post.content_type === 'foto' ? 'summary_large_image' : 'summary',
@@ -69,3 +70,4 @@ export default async function PublicPostPage({ params }) {
   if (!post) notFound();
   return <PostPublicClient post={post} />;
 }
+

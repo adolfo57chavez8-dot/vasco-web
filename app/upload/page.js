@@ -38,42 +38,48 @@ export default function UploadPage() {
     }
 
     setLoading(true);
-    const contentType = getMediaContentType(file);
-    const ext = getSafeFileExtension(file, contentType);
-    const baseName = sanitizeFileBaseName(customName || file.name);
-    const filePath = `${userData.user.id}/${Date.now()}-${crypto.randomUUID()}-${baseName}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('posts-media')
-      .upload(filePath, file, {
-        contentType,
-        cacheControl: '31536000',
-        upsert: false,
+    try {
+      const contentType = getMediaContentType(file);
+      const ext = getSafeFileExtension(file, contentType);
+      const baseName = sanitizeFileBaseName(customName || file.name);
+      const uuid = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const filePath = `${userData.user.id}/${Date.now()}-${uuid}-${baseName}.${ext}`;
+
+      // Subida directa a Supabase: no usamos FFmpeg, Workers ni CDNs externos.
+      // Esto evita el error de Worker/CORS que bloqueaba la publicación de videos.
+      const { error: uploadError } = await supabase.storage
+        .from('posts-media')
+        .upload(filePath, file, {
+          contentType,
+          cacheControl: '31536000',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('posts-media')
+        .getPublicUrl(filePath);
+
+      const { error: insertError } = await supabase.from('posts').insert({
+        user_id: userData.user.id,
+        content_type: isVideoFile(file) ? 'video' : 'foto',
+        file_url: publicUrlData.publicUrl,
+        description: description.trim(),
       });
 
-    if (uploadError) {
-      setError(uploadError.message);
-      setLoading(false);
-      return;
-    }
+      if (insertError) {
+        await supabase.storage.from('posts-media').remove([filePath]);
+        throw insertError;
+      }
 
-    const { data: publicUrlData } = supabase.storage
-      .from('posts-media')
-      .getPublicUrl(filePath);
-
-    const { error: insertError } = await supabase.from('posts').insert({
-      user_id: userData.user.id,
-      content_type: isVideoFile(file) ? 'video' : 'foto',
-      file_url: publicUrlData.publicUrl,
-      description: description.trim(),
-    });
-
-    setLoading(false);
-
-    if (insertError) {
-      setError(insertError.message);
-    } else {
       router.push('/');
+    } catch (err) {
+      setError(err?.message || 'No se pudo publicar el archivo.');
+      setLoading(false);
     }
   };
 
@@ -83,11 +89,11 @@ export default function UploadPage() {
 
   if (!session) {
     return (
-      <div>
+      <div className="upload-page">
         <div className="page-header">
           <span className="page-eyebrow">Publicar</span>
           <h1>Inicia sesión</h1>
-          <p className="page-subtitle">Solo los usuarios registrados pueden subir publicaciones.</p>
+          <p className="page-subtitle">Solo los usuarios registrados pueden compartir contenido.</p>
         </div>
         <div className="card login-required-card">
           <div className="state-title">Tu cuenta es necesaria</div>
@@ -99,22 +105,18 @@ export default function UploadPage() {
   }
 
   return (
-    <div>
+    <div className="upload-page">
       <div className="page-header">
-        <span className="page-eyebrow">Nueva</span>
+        <span className="page-eyebrow">Nueva publicación</span>
         <h1>Publicar</h1>
-        <p className="page-subtitle">Comparte una foto o video con la comunidad.</p>
+        <p className="page-subtitle">Comparte una imagen o video con la comunidad.</p>
       </div>
 
       <div className="card upload-card">
         <form onSubmit={handleSubmit} className="form">
           <div className="field">
-            <label className="label">Foto o video</label>
-            <MediaPicker
-              file={file}
-              onChange={setFile}
-              accept="image/*,video/*"
-            />
+            <label className="label">Medio</label>
+            <MediaPicker file={file} onChange={setFile} accept="image/*,video/*" />
           </div>
 
           {file && (
@@ -128,31 +130,31 @@ export default function UploadPage() {
                 onChange={(e) => setCustomName(e.target.value)}
                 maxLength={80}
               />
-              <p className="hint-text">Puedes dejarlo vacío y Vasco Web conservará un nombre seguro basado en el archivo original.</p>
             </div>
           )}
 
           <div className="field">
-            <label className="label" htmlFor="description">Descripción (opcional)</label>
+            <label className="label" htmlFor="description">Descripción</label>
             <textarea
               id="description"
               className="textarea"
-              placeholder="¿Qué estás compartiendo?"
+              placeholder="Cuéntale algo a la comunidad..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={3}
+              rows={4}
             />
           </div>
 
           {file && isVideoFile(file) && (
             <div className="upload-info-box">
-              <strong>Video seleccionado</strong>
-              <span>Se conservará el formato original. La reproducción final depende de los códecs compatibles con el dispositivo y navegador.</span>
+              <strong>Video listo para subir</strong>
+              <span>Vasco Web lo envía directamente a Supabase sin depender de FFmpeg ni de un CDN externo.</span>
             </div>
           )}
 
           {error && <p className="error-text">{error}</p>}
-          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+
+          <button type="submit" className="btn btn-primary btn-block upload-submit" disabled={loading}>
             {loading ? 'Publicando...' : 'Publicar'}
           </button>
         </form>
@@ -160,6 +162,7 @@ export default function UploadPage() {
     </div>
   );
 }
+
 
 
 

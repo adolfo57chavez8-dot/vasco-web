@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function ProtectedMedia({ type, src, alt, username }) {
   const [away, setAway] = useState(false);
-  const [mediaError, setMediaError] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  const videoRef = useRef(null);
 
   useEffect(() => {
     const handleVisibility = () => setAway(document.hidden);
@@ -16,25 +17,29 @@ export default function ProtectedMedia({ type, src, alt, username }) {
   const blockDrag = (e) => e.preventDefault();
 
   return (
-    <div
-      className={`protected-media${away ? ' away' : ''}`}
-      onContextMenu={blockContextMenu}
-    >
+    <div className={`protected-media${away ? ' away' : ''}`} onContextMenu={blockContextMenu}>
       {type === 'video' ? (
-        <video
-          key={src}
-          controls
-          playsInline
-          preload="metadata"
-          controlsList="nodownload"
-          disablePictureInPicture
-          onContextMenu={blockContextMenu}
-          onDragStart={blockDrag}
-          onError={() => setMediaError(true)}
-          onLoadedData={() => setMediaError(false)}
-        >
-          <source src={src} type="video/mp4" />
-        </video>
+        <>
+          {!videoError ? (
+            <video
+              ref={videoRef}
+              src={src}
+              controls
+              playsInline
+              preload="metadata"
+              controlsList="nodownload"
+              disablePictureInPicture={false}
+              onError={() => setVideoError(true)}
+              onContextMenu={blockContextMenu}
+              onDragStart={blockDrag}
+            />
+          ) : (
+            <div className="video-error-state">
+              <strong>Este navegador no puede reproducir este formato.</strong>
+              <a href={src} target="_blank" rel="noreferrer">Abrir video</a>
+            </div>
+          )}
+        </>
       ) : (
         <img
           src={src}
@@ -42,12 +47,6 @@ export default function ProtectedMedia({ type, src, alt, username }) {
           draggable={false}
           onDragStart={blockDrag}
         />
-      )}
-
-      {mediaError && type === 'video' && (
-        <p className="hint-text media-error-text">
-          No se pudo reproducir este video. Intenta nuevamente o revisa la conexión.
-        </p>
       )}
 
       {username && (
