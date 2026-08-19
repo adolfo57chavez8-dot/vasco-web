@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 export default function ProtectedMedia({ type, src, alt, username }) {
   const [away, setAway] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
 
   useEffect(() => {
     const handleVisibility = () => setAway(document.hidden);
@@ -21,14 +22,19 @@ export default function ProtectedMedia({ type, src, alt, username }) {
     >
       {type === 'video' ? (
         <video
-          src={src}
+          key={src}
           controls
           playsInline
           preload="metadata"
           controlsList="nodownload"
+          disablePictureInPicture
           onContextMenu={blockContextMenu}
           onDragStart={blockDrag}
-        />
+          onError={() => setMediaError(true)}
+          onLoadedData={() => setMediaError(false)}
+        >
+          <source src={src} type="video/mp4" />
+        </video>
       ) : (
         <img
           src={src}
@@ -36,6 +42,12 @@ export default function ProtectedMedia({ type, src, alt, username }) {
           draggable={false}
           onDragStart={blockDrag}
         />
+      )}
+
+      {mediaError && type === 'video' && (
+        <p className="hint-text media-error-text">
+          No se pudo reproducir este video. Intenta nuevamente o revisa la conexión.
+        </p>
       )}
 
       {username && (
@@ -48,4 +60,6 @@ export default function ProtectedMedia({ type, src, alt, username }) {
     </div>
   );
 }
+
+
 

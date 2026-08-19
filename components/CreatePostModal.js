@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import MediaPicker from './MediaPicker';
+import { getMediaContentType, getSafeFileExtension, isVideoFile } from '../lib/media';
+import { transcodeVideoToMp4 } from '../lib/videoTranscoder';
 
 export default function CreatePostModal({ onClose, onCreated }) {
   const [type, setType] = useState(null); // 'foto' | 'video'
@@ -10,8 +12,9 @@ export default function CreatePostModal({ onClose, onCreated }) {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [videoProgress, setVideoProgress] = useState(0);
 
-  const accept = type === 'video' ? 'video/mp4' : 'image/png,image/jpeg,image/webp';
+  const accept = type === 'video' ? 'video/*' : 'image/*';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,13 +32,31 @@ export default function CreatePostModal({ onClose, onCreated }) {
 
     setLoading(true);
 
-    const isVideo = file.type.startsWith('video/');
-    const ext = file.name.split('.').pop();
-    const filePath = `${userData.user.id}/${Date.now()}.${ext}`;
+    let uploadFile = file;
+    let isVideo = isVideoFile(file);
+
+    try {
+      if (isVideo) {
+        uploadFile = await transcodeVideoToMp4(file, (progress) => setVideoProgress(Math.round(progress * 100)));
+        setVideoProgress(100);
+      }
+    } catch (transcodeError) {
+      setError(transcodeError?.message || 'No se pudo preparar el video para reproducción web.');
+      setLoading(false);
+      return;
+    }
+
+    const contentType = getMediaContentType(uploadFile);
+    const ext = getSafeFileExtension(uploadFile, contentType);
+    const filePath = `${userData.user.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from('posts-media')
-      .upload(filePath, file);
+      .upload(filePath, uploadFile, {
+        contentType,
+        cacheControl: '31536000',
+        upsert: false,
+      });
 
     if (uploadError) {
       setError(uploadError.message);
@@ -102,9 +123,12 @@ export default function CreatePostModal({ onClose, onCreated }) {
                 />
               </div>
               {error && <p className="error-text">{error}</p>}
+              {loading && isVideoFile(file) && (
+                <p className="hint-text">Preparando video compatible: {videoProgress}%</p>
+              )}
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-                  {loading ? 'Publicando...' : 'Publicar'}
+                  {loading ? (isVideoFile(file) ? 'Convirtiendo y publicando...' : 'Publicando...') : 'Publicar'}
                 </button>
                 <button type="button" className="btn btn-ghost" onClick={() => setType(null)} disabled={loading}>
                   Cambiar
@@ -117,4 +141,6 @@ export default function CreatePostModal({ onClose, onCreated }) {
     </div>
   );
 }
+
+
 

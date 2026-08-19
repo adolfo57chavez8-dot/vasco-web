@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 import MediaPicker from '../../components/MediaPicker';
+import { getMediaContentType, getSafeFileExtension, isVideoFile } from '../../lib/media';
+import { transcodeVideoToMp4 } from '../../lib/videoTranscoder';
 
 export default function UploadPage() {
   const router = useRouter();
@@ -11,6 +13,7 @@ export default function UploadPage() {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [videoProgress, setVideoProgress] = useState(0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,13 +31,31 @@ export default function UploadPage() {
 
     setLoading(true);
 
-    const isVideo = file.type.startsWith('video/');
-    const ext = file.name.split('.').pop();
-    const filePath = `${userData.user.id}/${Date.now()}.${ext}`;
+    let uploadFile = file;
+    let isVideo = isVideoFile(file);
+
+    try {
+      if (isVideo) {
+        uploadFile = await transcodeVideoToMp4(file, (progress) => setVideoProgress(Math.round(progress * 100)));
+        setVideoProgress(100);
+      }
+    } catch (transcodeError) {
+      setError(transcodeError?.message || 'No se pudo preparar el video para reproducción web.');
+      setLoading(false);
+      return;
+    }
+
+    const contentType = getMediaContentType(uploadFile);
+    const ext = getSafeFileExtension(uploadFile, contentType);
+    const filePath = `${userData.user.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from('posts-media')
-      .upload(filePath, file);
+      .upload(filePath, uploadFile, {
+        contentType,
+        cacheControl: '31536000',
+        upsert: false,
+      });
 
     if (uploadError) {
       setError(uploadError.message);
@@ -77,7 +98,7 @@ export default function UploadPage() {
             <MediaPicker
               file={file}
               onChange={setFile}
-              accept="image/png,image/jpeg,image/webp,video/mp4"
+              accept="image/*,video/*"
             />
           </div>
           <div className="field">
@@ -91,14 +112,21 @@ export default function UploadPage() {
             />
           </div>
           {error && <p className="error-text">{error}</p>}
+          {loading && isVideoFile(file) && (
+            <p className="hint-text">Preparando video compatible: {videoProgress}%</p>
+          )}
           <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-            {loading ? 'Subiendo...' : 'Publicar'}
+            {loading ? (isVideoFile(file) ? 'Convirtiendo y subiendo...' : 'Subiendo...') : 'Publicar'}
           </button>
         </form>
       </div>
     </div>
   );
 }
+
+
+
+
 
 
 
